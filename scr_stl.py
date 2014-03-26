@@ -95,12 +95,15 @@ print "Processing",root, type, "for variable",varname
 # == detect time dimension and length
 #
 f  = cdms.open(indir+"/"+filename)
-timename = f(varname).getTime().id
-count    = f(varname).getTime().shape[0]
-      
-if timename == "none":  
-    print "*** no UNLIMITED dimension in file ",filename
+time=f[varname].getTime()
+
+if time is None:  
+    print "*** no time dimension in file ",filename
     count = raw_input("Enter number of time steps: ")
+else:
+    timename = time.id
+    count    = time.shape[0]
+      
 
 if ave in ["1m"]:
     month1=date1[-2:]
