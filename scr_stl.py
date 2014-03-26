@@ -1,5 +1,6 @@
 #!/usr/local/uvcdat/latest/bin/cdat
 #
+#
 # Script to perform STL decomposition on time serie
 # and compute std dev of seasonal and remainder as well as their ratio
 #
