@@ -15,7 +15,9 @@ import numpy as num
 import cdms2 as cdms
 import support_procs as supp
 import subprocess
+from subprocess import Popen, PIPE
 import socket
+import string
 #
 # == Arguments
 #
@@ -73,24 +75,61 @@ with open(filer, "a") as f:
 #
 # == decode file name
 #
+postit = False
 # post-it encoding
-argfile = filename.split("_")
+if postit:
+    argfile = filename.split("_")
 
-enam  = argfile[0]
-ave   = argfile[1]
-date1 = argfile[2]
-date2 = argfile[3]
-type  = argfile[4:]
-
-year1 = date1[:-2]
-year2 = date2[:-2]
-root  = enam+"_"+ave+"_"+date1+"_"+date2
-
-type  = "_".join(type)
+    enam  = argfile[0]
+    ave   = argfile[1]
+    date1 = argfile[2]
+    date2 = argfile[3]
+    type  = argfile[4:]
+    
+    year1 = date1[:-2]
+    year2 = date2[:-2]
+    root  = enam+"_"+ave+"_"+date1+"_"+date2
+    
+    type  = "_".join(type)
+    
+    print "Processing",root, type, "for variable",varname
+else:
+#
 # cmip5 drs encoding
-# to do
+# 
+    project='cmip5'
+    exper = 'piControl'
+    realm = 'ocn' 
+#exper = 'historical'
 
-print "Processing",root, type, "for variable",varname
+    simus_hist={'CCSM4':'r2i1p1.ver-v20130425','MRI-CGCM3':'r1i1p1.ver-v20120701','MIROC5':'r1i1p1.ver-1','IPSL-CM5B-LR':'r1i1p1.ver-v20120114','GFDL-CM3':'r1i1p1.ver-v20110601','GFDL-ESM2M':'r1i1p1.ver-v20111228','CNRM-CM5-2':'r1i1p1.ver-v20130401','CESM1-BGC':'r1i1p1.ver-v20130213','CanESM2':'r1i1p1.ver-v20120623','HadGEM2-CC':'r1i1p1','CMCC-CM':'r1i1p1.ver-v20120627'}
+
+    simus_pictr={'CCSM4':'r1i1p1.ver-v20130513','MRI-CGCM3':'r1i1p1.ver-v20120701','MIROC5':'r1i1p1.ver-1','IPSL-CM5B-LR':'r1i1p1.ver-v20120114','GFDL-CM3':'r1i1p1.ver-v1','GFDL-ESM2M':'r1i1p1.ver-v20130214','CNRM-CM5-2':'r1i1p1.ver-v20130402','CESM1-BGC':'r1i1p1.ver-v20130216','CanESM2':'r1i1p1.ver-v20111028','HadGEM2-CC':'r1i1p1','CMCC-CM':'r1i1p1.ver-v20120627.'}
+
+    model = 'CCSM4'
+##model = 'MRI-CGCM3'
+#model = 'MIROC5'
+#model = 'IPSL-CM5B-LR'
+##model = 'GFDL-CM3'
+#model = 'GFDL-ESM2M'
+#model = 'CNRM-CM5-2'
+#model = 'CESM1-BGC'
+#model = 'CanESM2'
+##model = 'HadGEM2-CC'
+##model =  'CMCC-CM'
+
+    if exper == 'historical':
+        ript    = string.split(simus_hist[model],'.')[0]
+        versiont = string.split(simus_hist[model],'.')[1]
+    elif exper == 'piControl':
+        ript    = string.split(simus_pictr[model],'.')[0]
+        versiont = string.split(simus_pictr[model],'.')[1]
+
+    indir = '/work/'+project+'/'+exper+'/'+realm+'/mo/'+varname
+    
+    filename = project+'.'+model+'.'+exper+'.'+ript+'.mo.ocn.Omon.'+varname+'.'+versiont+'.latestX.xml'
+    #find real directory
+    print 'Processing',filename, 'from',indir
 
 #
 # == detect time dimension and length
@@ -104,15 +143,6 @@ if time is None:
 else:
     timename = time.id
     count    = time.shape[0]
-      
-
-if ave in ["1m"]:
-    month1=date1[-2:]
-    month2=date2[-2:]
-else:
-    print " ERROR : case ave=",ave," not relevant "
-    sys.exit(2)
-    
 #
 # == define count of time steps
 #
@@ -126,10 +156,25 @@ else:
     nyears   = count/12
     timecode = str(init_idx)+" "+str(count)
     iniyr    = init_idx / 12
+    
+    if not postit:
+        date1 = '0101'
+        date2 = "%02d" % nyears+'12'
+        year1 = date1[:-2]
+        year2 = date2[:-2]
+        ave = '1m'
+
+    if ave in ["1m"]:
+        month1=date1[-2:]
+        month2=date2[-2:]
+    else:
+        print " ERROR : case ave=",ave," not relevant "
+        sys.exit(2)
     year1    = int(year1)
     year2    = int(year2)
     year1    = year1 + iniyr
     year2    = year1 + nyears - 1
+    
     print " Working on years ", year1, "-", year2
 
 trend_win_mo = int(trend_win) * 12
@@ -137,9 +182,12 @@ trend_win_mo = int(trend_win) * 12
 #
 # == Output file names
 #
-
-outstl=enam+str(trend_win)+'yoSTL_1m_'+str(year1)+str(month1)+'_'+str(year2)+str(month2)+'_'+type
-outstd=enam+str(trend_win)+'yoSTL_'+str(nyears)+'y_'+str(year1)+'_'+str(year2)+'_'+type
+if postit:
+    outstl=enam+str(trend_win)+'yoSTL_1m_'+str(year1)+str(month1)+'_'+str(year2)+str(month2)+'_'+type
+    outstd=enam+str(trend_win)+'yoSTL_'+str(nyears)+'y_'+str(year1)+'_'+str(year2)+'_'+type
+else:
+    outstl = project+'.'+model+'yoSTL.'+exper+'.'+ript+'.mo.ocn.Omon.'+varname+'.'+versiont+'.latestX.xml'
+    outstd = project+'.'+model+'yoSTLm.'+exper+'.'+ript+'.mo.ocn.Omon.'+varname+'.'+versiont+'.latestX.xml'
 
 print " "
 print " Computing ",outstl,"..."
@@ -148,6 +196,8 @@ print " "
 
 #
 # == Execute STL called R routine
+#
+# TODO Modify to read using cdms
 #
 cmd_str = toolpath+'/Compute_stl.R '+indir+"/"+filename+' '+varname+' '+str(year1)+' '+timecode+' '+str(seasonal_win)+' '+str(trend_win_mo)+' '+debug+' '+varprefix
 
